@@ -1,5 +1,5 @@
 # rabbitmq-notes目录
-- [ ] RabbitMQ下载安装
+- [x] [RabbitMQ：下载 & 安装](./notes/RabbitMQ：下载 & 安装.md)
 - [ ] AMQP 0-9-1：模型
 - [ ] AMQP 0-9-1：命令
 - [ ] AMQP 0-9-1：传输
