@@ -12,30 +12,16 @@ public class Application {
         ConnectionFactory connectionFactory = new ConnectionFactory();
         Connection connection = connectionFactory.newConnection();
         Channel channel = connection.createChannel();
-//        channel.addReturnListener(new ReturnListener() {
-//            @Override
-//            public void handleReturn(int replyCode, String replyText, String exchange, String routingKey, AMQP.BasicProperties properties, byte[] body) throws IOException {
-//                System.out.println("handleReturn");
-//                System.out.println(replyText);
-//                System.out.println(exchange);
-//                System.out.println(routingKey);
-//                System.out.println(new String(body));
-//            }
-//        });
-        AMQP.Confirm.SelectOk selectOk = channel.confirmSelect();
-        channel.basicPublish("1", "myqueue", false, null, "hello".getBytes());
-        try {
-            boolean flag = channel.waitForConfirms();
-            System.out.println(flag);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-//        channel.basicConsume("myqueue", false, new DefaultConsumer(channel) {
-//            @Override
-//            public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-//                System.out.println(new String(body));
-//                channel.basicAck(envelope.getDeliveryTag(), false);
-//            }
-//        });
+        channel.addReturnListener(new ReturnListener() {
+            @Override
+            public void handleReturn(int replyCode, String replyText, String exchange, String routingKey, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                System.out.println("return message: " + new String(body));
+            }
+        });
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("color", "blue");
+        headers.put("size", "big");
+        AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder().headers(headers).build();
+        channel.basicPublish("amq.headers", "", true, properties, "hello".getBytes());
     }
 }

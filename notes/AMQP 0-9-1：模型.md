@@ -101,7 +101,7 @@ Exchange本质上是一种路由算法，它会分析发布消息时指定的rou
 
 这些交换机类型足以满足日常工作中的各种场景。
 
-RabbitMQ实现了前四种，并在Broker中默认创建了如下Exchange：
+RabbitMQ实现了前四种，并在Broker中默认创建了如下Exchange实例：
 
 - ` `（AMQP default）：Direct Exchange，发布消息不指定交换机时会默认发送到该交换机。
 - `amq.direct`：Direct Exchange。
@@ -117,20 +117,20 @@ Direct Exchange工作原理：
 
 ![DirectExchange](AMQP 0-9-1：模型-img/DirectExchange.png)
 
-1. Queue绑定到Direct Exchange时需要指定routingKey。
-2. Publisher发布消息给Direct Exchange时需要指定routingKey的值。
+1. Queue绑定到Direct Exchange时需要指定`routingKey`。
+2. Publisher发布消息给Direct Exchange时需要指定`routingKey`的值。
 3. Direct Exchange接收到消息时，会执行如下路由算法：
-   1. 读取routingKey值。
-   2. 遍历与之绑定的Queue列表，找到所有routingKey匹配的Queue。
+   1. 读取`routingKey`值。
+   2. 遍历与之绑定的Queue列表，找到所有`routingKey`匹配的Queue。
    3. 转发消息给匹配Queue。
 
-很明显，上面原理图中，Direct Exchange会将消息转发给routingKey=red的Queue。
+很明显，上面原理图中，Direct Exchange会将消息转发给`routingKey=red`的Queue。
 
-特别需要注意的是，Direct Exchange路由算法的唯一指标是routingKey。同时，它会将消息转发给所有匹配的Queue，而不是说找到了一个匹配的Queue就停止遍历了。
+特别需要注意的是，Direct Exchange路由算法的唯一指标是`routingKey`。同时，它会将消息转发给所有匹配的Queue，而不是说找到了一个匹配的Queue就停止遍历了。
 
-RabbitMQ默认创建了名为` `（空字符串）的默认Direct Exchange，它会自动与所有Queue绑定，并指定routingKey为队列名。因此，在使用默认交换机可以直接将routingKey指定为队列名。
+RabbitMQ默认创建了名为` `（空字符串）的默认Direct Exchange，它会自动与所有Queue绑定，并指定`routingKey`为队列名。因此，在向默认交换机发送消息时可以直接将`routingKey`指定为队列名。
 
-此外，日常工作中也习惯将routingKey与队列名使用相同值，所以容易引起混淆，让人们误以为Direct Exchange是根据队列名进行路由的。
+此外，日常工作中也习惯将`routingKey`与队列名使用相同值，所以容易引起混淆，让人们误以为Direct Exchange是根据队列名进行路由的。
 
 ### 2、Faout Exchange
 
@@ -144,13 +144,90 @@ Faout Exchange工作原理：
 
 很明显，上面原理图中，Faout Exchange会将消息同时转发给与它绑定的三个Queue。
 
+特别需要注意的是，Faout Exchange路由算法的没有路由指标，它会将消息转发给所有与它绑定的Queue。
+
 Faout Exchange的原理与计算机网络中的组播类似，通常用于实现发布/订阅场景。
 
 ### 3、Topic Exchange
 
 Topic Exchange工作原理：
 
+![TopicExchange](AMQP 0-9-1：模型-img/TopicExchange.png)
 
+1. Queue绑定到Topic Exchange时需要指定`routingKey`，其值通常为以“.”分隔的多个单词。使用通配符`#`或`*`进行模糊匹配：
+   1. `#`：匹配零或多个单词。
+   2. `*`：匹配一个单词。
+2. Publisher发布消息给Topic Exchange时需要指定`routingKey`，其值为确定值（即没有通配符的概念）。
+3. Topic Exchange接收到消息时，会执行如下路由算法：
+   1. 读取`routingKey`值。
+   2. 遍历与之绑定的Queue列表，找到所有`routingKey`匹配的Queue。
+   3. 转发消息给匹配Queue。
+
+很明显，上面原理图中，Topic Exchange会将两条消息都转发给`routingKey=#.black.*`的Queue。
+
+特别需要注意的是，Topic Exchange路由算法的唯一指标也是`routingKey`。同时，它会将消息转发给所有匹配的Queue，而不是说找到了一个匹配的Queue就停止遍历了。
+
+将Direct Exchange和Topic Exchange进行对比，可以很明显地发现：
+
+- Direct Exchange是低配版的Topic Exchange，`routingKey`与Queue之间为一对一关系：一个Queue只能接收`routingKey`唯一对应的消息。
+- Topic Exchange是高配版的Direct Exchange，`routingKey`与Queue之间为多对一关系：一个Queue可以接收多种`routingKey`的消息。
+
+### 4、Headers Exchange
+
+Headers Exchange工作原理：
+
+![HeadersExchange](AMQP 0-9-1：模型-img/HeadersExchange.png)
+
+1. Queue绑定到Headers Exchange时需要指定`arguement`作为匹配条件，其值为key-value键值对。多个key-value键值对时，可以使用`x-match`指定多条件匹配关系：
+   1. `all`：所有key-value键值对都要匹配才会进行转发，即匹配条件之间为“且”的关系。默认值。
+   2. `any`：只要有一个key-value键值对匹配就会进行转发，即匹配条件之间为“或”的关系。
+2. Publisher发布消息给Headers Exchange时需要指定`headers`，此时不需要添加`x-match`。
+3. headers Exchange接收到消息时，会执行如下路由算法：
+   1. 读取请求`headers`。
+   2. 遍历绑定的Queue列表，读取绑定`arguement`。
+   3. 判断绑定`arguement`的`x-match`值：
+      1. `all`或没有声明`x-match`：绑定`arguement`中所有key-value在请求`headers`中都存在且匹配则成功，否则失败。
+      2. `any`：绑定`arguement`中只要有一个key-value键值对在请求`headers`中存在且匹配就成功，所有绑定`arguement`的key-value键值对在请求`headers`中都不存在或不匹配才失败。
+   4. 转发消息给匹配Queue。
+
+很明显，上面原理图中，Headers Exchange会将消息转发给`bigOrBlack`和`black`队列。
+
+### 5、System Exchange
+
+System Exchange的工作原理为：
+
+1. Publisher向System Exchange发送`routingKey=S`的消息。
+2. System Exchange会将该消息转发给名为`S`的系统服务。
+
+RabbitMQ默认没有支持该类型交换机，所以在这里不进行过多讲解。
+
+## 2.3 交换机属性
+
+上面详细介绍了交换机的工作原理和类型，想必大家对交换机都有了朦胧的理解：大概知道交换机是什么，但是又不能
+
+```json
+"exchanges": [
+  {
+    "name": "test.exchange",
+    "vhost": "/",
+    "type": "direct",
+    "durable": true,
+    "auto_delete": false,
+    "internal": false,
+    "arguments": {
+      "alternate-exchange": "amq.direct",
+      "testArgumentsName": "testArgumentsValue"
+    }
+  }
+]
+```
+
+- `exchanges`：交换机对象数组，内部每一个对象表示一个交换机。
+- `name`：交换机名字。
+- `vhost`：交换机所属Virtual Host。
+- `type`：交换机类型，RabbitMQ中可选值为`direct`、`faout`、`topic`和`headers`。
+- `durable`：是否可以持久化，可选值为`true`（持久化）和`false`（非持久化）。
+- `auto_delete`：
 
 # 3 Message Queue
 
