@@ -144,7 +144,7 @@ Faout Exchange工作原理：
 
 很明显，上面原理图中，Faout Exchange会将消息同时转发给与它绑定的三个Queue。
 
-特别需要注意的是，Faout Exchange路由算法的没有路由指标，它会将消息转发给所有与它绑定的Queue。
+特别需要注意的是，Faout Exchange路由算法没有路由指标，它会将消息转发给所有与它绑定的Queue。
 
 Faout Exchange的原理与计算机网络中的组播类似，通常用于实现发布/订阅场景。
 
@@ -203,7 +203,7 @@ RabbitMQ默认没有支持该类型交换机，所以在这里不进行过多讲
 
 ## 2.3 交换机属性
 
-上面详细介绍了交换机的工作原理和类型，想必大家对交换机都有了朦胧的理解：大概知道交换机是什么，但是又不能
+通过导出RabbitMQ的`Definitions`，我们可以得到Broker中的许多配置信息，从中我们可以找到交换机数据结构的存储格式如下：
 
 ```json
 "exchanges": [
@@ -222,12 +222,18 @@ RabbitMQ默认没有支持该类型交换机，所以在这里不进行过多讲
 ]
 ```
 
-- `exchanges`：交换机对象数组，内部每一个对象表示一个交换机。
+- `exchanges`：存放交换机实例的数组，内部每一个对象表示一个交换机实例。
 - `name`：交换机名字。
 - `vhost`：交换机所属Virtual Host。
 - `type`：交换机类型，RabbitMQ中可选值为`direct`、`faout`、`topic`和`headers`。
-- `durable`：是否可以持久化，可选值为`true`（持久化）和`false`（非持久化）。
-- `auto_delete`：
+- `durable`：是否可以持久化，可选值为`true`（持久化）和`false`（非持久化）。持久化交换机会保存到本地磁盘，Broker重启后能获取原有交换机数据。
+- `auto_delete`：是否自动删除，可选值为`true`和`false`：
+  - `true`：当该交换机没有与之绑定的消息队列时，会被自动删除。
+  - `false`：当该交换机没有与之绑定的消息队列时，不会被删除，仍然可以独立存在。
+- `internal`：是否时内部使用的交换机，可选值为`true`和`false`。
+  - `true`：内部使用交换机，Publisher不能指定发送消息给内部交换机。
+  - `false`：外部使用交换机，Publisher可以将消息发送给外部交换机。通常我们声明的都是外部使用交换机。
+- `arguments`：可选参数，内部为key-value键值对，可用于完成特定功能。例如，`alternate-exchange`可指定替补交换机。
 
 # 3 Message Queue
 
