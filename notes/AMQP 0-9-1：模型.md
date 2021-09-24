@@ -66,11 +66,13 @@ AMQP协议的主要特点是将路由和存储消息的功能分给交给Exchang
 
 Exchange的作用是：接收从Publisher发来的消息，然后根据路由规则转发消息给Message Queue。
 
-需要注意的是，在这个过程中Exchange并不会保存消息。如果能找到匹配的Message Queue，那么消息就能够成功转发。但是如果匹配失败，Exchange会根据自身是否存在替补交换机（Alternate Exchange）进行重新分发消息，也会根据Publisher发布消息是否指定为`mandatory`进行丢弃或返回给Publisher。
+需要注意的是，在这个过程中Exchange并不会保存消息。
+
+如果能找到匹配的Message Queue，那么消息就能够成功转发。但是如果匹配失败，Exchange会根据自身是否存在替补交换机（Alternate Exchange）进行重新分发消息，也会根据Publisher发布消息是否指定为`mandatory`进行丢弃或返回给Publisher。
 
 同时，为了保证数据安全，如果手动开启了Publisher确认机制，当消息被Broker中的Exchange接收时会返回一个确认消息`basic.ack`，如果没有Exchange能够接收则会响应异常信息。后续文章会深入讨论确认机制的细节。
 
-因此，考虑到所有常见情况，Exchange工作的基本流程是：
+因此，考虑到所有常见情况，RabbitMQ中Exchange的基本工作流程是：
 
 ![Exchange工作流程](AMQP 0-9-1：模型-img/Exchange工作流程.png)
 
@@ -237,7 +239,71 @@ RabbitMQ默认没有支持该类型交换机，所以在这里不进行过多讲
 
 # 3 Message Queue
 
-Message Queue是
+## 3.1 工作流程
+
+Message Queue是FIFO（First In First Out，先进先出）队列，它的作用是：
+
+- 接收消息（from Exchange）
+- 保存消息
+- 发送Consumer（to Consumer）
+
+RabbitMQ中Message Queue的基本工作流程是：
+
+![MessageQueue工作流程](AMQP 0-9-1：模型-img/MessageQueue工作流程.png)
+
+1. Message Queue接收到Exchange转发的消息后，将消息保存到内存/磁盘中。
+2. Consumer通过订阅/拉取的方式向Message Queue获取消息。
+3. Message Queue将队列头部消息复制并发送给Consumer。
+4. Consumer响应`ack`/`reject`/`nack`给Message Queue（可以在业务处理之前或之后）：
+   1. `ack`：确认接收并处理消息（Message Queue会删除队列中保存的该消息）。
+   2. `reject`：拒绝一条消息。
+   3. `nack`：拒绝一条/多条消息。
+5. 接收`reject`/`nack`响应后，Message Queue会根据响应是否`requeue`进行下一步处理：
+   1. `true`：不删除队列中该消息，之后可以将该消息发给另外的Consumer处理。
+   2. `false`：删除队列中该消息，可能会造成消息丢失。
+
+## 3.2 消息队列属性
+
+通过导出RabbitMQ的`Definitions`，我们可以得到Broker中的许多配置信息，从中我们可以找到交换机数据结构的存储格式如下：
+
+```json
+"queues": [
+    {
+        "name": "test.queue",
+        "vhost": "/",
+        "durable": true,
+        "auto_delete": false,
+        "arguments": {
+            "x-queue-type": "classic"
+        }
+    }
+]
+```
+
+- `queues`：存放消息队列实例的数组，内部每一个对象表示一个消息队列实例。
+- `name`：消息队列名字。
+- `vhost`：消息队列所属Virtual Host。
+- `durable`：是否可以持久化，可选值为`true`（持久化）和`false`（非持久化）。持久化消息队列会保存到本地磁盘，Broker重启后能获取原有消息队列数据（包括其中的消息）。
+- `exclusive`：是否排他，可选值为`true`和`false`：
+  - `true`：消息队列独属于当前Channel，Channel关闭时消息队列会被删除。
+  - `false`：消息队列可以多个Channel共享。
+
+- `auto_delete`：是否自动删除，可选值为`true`和`false`：
+  - `true`：当没有Consumer订阅该消息队列时，会被自动删除。
+  - `false`：当没有Consumer订阅该消息队列时，不会被删除，仍然可以独立存在。
+- `arguments`：可选参数，内部为key-value键值对，可用于完成特定功能。例如：
+  - `x-message-ttl`：没有被Consumer消费的情况下，**消息**能够在队列中存活的时间（毫秒）。
+  - `x-expires`：没有被Consumer订阅的情况下，**消息队列**能够存活的时间（毫秒）。
+  - `x-single-active-consumer`：值为`true`/`false`，一次只有一个Consumer从队列中获取消息。
+  - `x-dead-letter-exchange`：指定消息过期或被`reject`（死信）后，用来重新转发消息的替补交换机的名字。
+  - `x-dead-letter-routing-key`：死信在替补交换机路由过程中所使用的`routingKey`，如果没有指定则使用原先的`routingKey`。
+  - `x-max-length`：消息队列最大能存放消息的数量。
+  - `x-max-length-bytes`：消息队列最大能存放消息的字节长度。
+  - `x-max-priority`：消息队列能提供的最小优先级。如果没有指定则不能提供消息优先级功能。
+  - `x-queue-mode`：是否为懒模式：
+    - `lazy`：消息队列会尽可能将消息保存到磁盘，而不是内存中。
+    - `default`（未设置）：消息队列尽可能将消息保存到内存中，以实现消息的快速发送。
+  - `x-queue-master-locator`：设置消息队列集群中主节点的地址。
 
 # 4 Binding
 

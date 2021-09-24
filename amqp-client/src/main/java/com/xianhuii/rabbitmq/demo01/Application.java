@@ -12,16 +12,17 @@ public class Application {
         ConnectionFactory connectionFactory = new ConnectionFactory();
         Connection connection = connectionFactory.newConnection();
         Channel channel = connection.createChannel();
-        channel.addReturnListener(new ReturnListener() {
-            @Override
-            public void handleReturn(int replyCode, String replyText, String exchange, String routingKey, AMQP.BasicProperties properties, byte[] body) throws IOException {
-                System.out.println("return message: " + new String(body));
-            }
-        });
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("color", "blue");
-        headers.put("size", "big");
-        AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder().headers(headers).build();
-        channel.basicPublish("amq.headers", "", true, properties, "hello".getBytes());
+//        channel.addReturnListener(new ReturnListener() {
+//            @Override
+//            public void handleReturn(int replyCode, String replyText, String exchange, String routingKey, AMQP.BasicProperties properties, byte[] body) throws IOException {
+//                System.out.println("return message: " + new String(body));
+//            }
+//        });
+//        Map<String, Object> headers = new HashMap<>();
+//        headers.put("color", "blue");
+//        headers.put("size", "big");
+//        AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder().headers(headers).build();
+//        channel.basicPublish("amq.headers", "", true, properties, "hello".getBytes());
+        channel.queueDeclare("testQueue", true, false, false, null);
     }
 }
