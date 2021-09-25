@@ -81,7 +81,7 @@ Exchange的作用是：接收从Publisher发来的消息，然后根据路由规
 3. Broker接收到消息：
    1. 未找到Exchange：响应Channel级别异常给Publisher，终止流程。
    2. 找到Exchange：分发消息给对应的Exchange，同时响应`basic.ack`给Publisher，进行下一步。
-4. Exchange解析路由规则：
+4. Exchange解析路由规则，遍历Binding列表：
    1. 找到Message Queue：转发消息到对应的Message Queue，终止流程。
    2. 未找到Message Queue，判断是否存在替补交换机：
       1. 存在：重新分发消息给替补交换机，替补交换机按照自己的方式解析路由规则。
@@ -123,7 +123,7 @@ Direct Exchange工作原理：
 2. Publisher发布消息给Direct Exchange时需要指定`routingKey`的值。
 3. Direct Exchange接收到消息时，会执行如下路由算法：
    1. 读取`routingKey`值。
-   2. 遍历与之绑定的Queue列表，找到所有`routingKey`匹配的Queue。
+   2. 遍历Binding列表，找到所有`routingKey`匹配的Queue。
    3. 转发消息给匹配Queue。
 
 很明显，上面原理图中，Direct Exchange会将消息转发给`routingKey=red`的Queue。
@@ -142,7 +142,8 @@ Faout Exchange工作原理：
 
 1. Queue绑定到Faout Exchange时不需要指定参数。
 2. Publisher发布消息给Faout Exchange时也不需要指定参数。
-3. Faout Exchange会无条件将消息转发给所有与它绑定的Queue。
+3. 遍历Binding列表，找到与之绑定的Queue。
+4. Faout Exchange会无条件将消息转发给所有与它绑定的Queue。
 
 很明显，上面原理图中，Faout Exchange会将消息同时转发给与它绑定的三个Queue。
 
@@ -162,7 +163,7 @@ Topic Exchange工作原理：
 2. Publisher发布消息给Topic Exchange时需要指定`routingKey`，其值为确定值（即没有通配符的概念）。
 3. Topic Exchange接收到消息时，会执行如下路由算法：
    1. 读取`routingKey`值。
-   2. 遍历与之绑定的Queue列表，找到所有`routingKey`匹配的Queue。
+   2. 遍历Binding列表，找到所有`routingKey`匹配的Queue。
    3. 转发消息给匹配Queue。
 
 很明显，上面原理图中，Topic Exchange会将两条消息都转发给`routingKey=#.black.*`的Queue。
@@ -186,7 +187,7 @@ Headers Exchange工作原理：
 2. Publisher发布消息给Headers Exchange时需要指定`headers`，此时不需要添加`x-match`。
 3. headers Exchange接收到消息时，会执行如下路由算法：
    1. 读取请求`headers`。
-   2. 遍历绑定的Queue列表，读取绑定`arguement`。
+   2. 遍历Binding列表，读取绑定`arguement`。
    3. 判断绑定`arguement`的`x-match`值：
       1. `all`或没有声明`x-match`：绑定`arguement`中所有key-value在请求`headers`中都存在且匹配则成功，否则失败。
       2. `any`：绑定`arguement`中只要有一个key-value键值对在请求`headers`中存在且匹配就成功，所有绑定`arguement`的key-value键值对在请求`headers`中都不存在或不匹配才失败。
@@ -235,7 +236,7 @@ RabbitMQ默认没有支持该类型交换机，所以在这里不进行过多讲
 - `internal`：是否时内部使用的交换机，可选值为`true`和`false`。
   - `true`：内部使用交换机，Publisher不能指定发送消息给内部交换机。
   - `false`：外部使用交换机，Publisher可以将消息发送给外部交换机。通常我们声明的都是外部使用交换机。
-- `arguments`：可选参数，内部为key-value键值对，可用于完成特定功能。例如，`alternate-exchange`可指定替补交换机。
+- `arguments`：可选参数，内部为key-value键值对，可用于完成Exchange的特定功能。例如，`alternate-exchange`可指定替补交换机。
 
 # 3 Message Queue
 
@@ -261,6 +262,7 @@ RabbitMQ中Message Queue的基本工作流程是：
 5. 接收`reject`/`nack`响应后，Message Queue会根据响应是否`requeue`进行下一步处理：
    1. `true`：不删除队列中该消息，之后可以将该消息发给另外的Consumer处理。
    2. `false`：删除队列中该消息，可能会造成消息丢失。
+6. 接收`reject`/`nack`响应后，如果设置`x-dead-letter-exchange`还可以重新转发给替补交换机。
 
 ## 3.2 消息队列属性
 
@@ -269,7 +271,7 @@ RabbitMQ中Message Queue的基本工作流程是：
 ```json
 "queues": [
     {
-        "name": "test.queue",
+        "name": "testQueue",
         "vhost": "/",
         "durable": true,
         "auto_delete": false,
@@ -291,12 +293,12 @@ RabbitMQ中Message Queue的基本工作流程是：
 - `auto_delete`：是否自动删除，可选值为`true`和`false`：
   - `true`：当没有Consumer订阅该消息队列时，会被自动删除。
   - `false`：当没有Consumer订阅该消息队列时，不会被删除，仍然可以独立存在。
-- `arguments`：可选参数，内部为key-value键值对，可用于完成特定功能。例如：
+- `arguments`：可选参数，内部为key-value键值对，可用于完成Message Queue的特定功能。例如：
   - `x-message-ttl`：没有被Consumer消费的情况下，**消息**能够在队列中存活的时间（毫秒）。
   - `x-expires`：没有被Consumer订阅的情况下，**消息队列**能够存活的时间（毫秒）。
   - `x-single-active-consumer`：值为`true`/`false`，一次只有一个Consumer从队列中获取消息。
-  - `x-dead-letter-exchange`：指定消息过期或被`reject`（死信）后，用来重新转发消息的替补交换机的名字。
-  - `x-dead-letter-routing-key`：死信在替补交换机路由过程中所使用的`routingKey`，如果没有指定则使用原先的`routingKey`。
+  - `x-dead-letter-exchange`：指定消息过期或被`reject`（死信）后，用来重新转发消息的交换机的名字。
+  - `x-dead-letter-routing-key`：死信在交换机路由过程中所使用的`routingKey`，如果没有指定则使用原先的`routingKey`。
   - `x-max-length`：消息队列最大能存放消息的数量。
   - `x-max-length-bytes`：消息队列最大能存放消息的字节长度。
   - `x-max-priority`：消息队列能提供的最小优先级。如果没有指定则不能提供消息优先级功能。
@@ -304,10 +306,30 @@ RabbitMQ中Message Queue的基本工作流程是：
     - `lazy`：消息队列会尽可能将消息保存到磁盘，而不是内存中。
     - `default`（未设置）：消息队列尽可能将消息保存到内存中，以实现消息的快速发送。
   - `x-queue-master-locator`：设置消息队列集群中主节点的地址。
+  - `x-queue-type`：设置消息队列的类型，可选值为`classic`、`quorum`和`stream`。
 
 # 4 Binding
 
-【绑定的作用/工作原理】
+通过上面对Exchange和Message Queue的介绍，我们可以发现它们的存储信息中并没有对方的信息。那么
+
+```json
+"bindings": [
+    {
+        "source": "amq.headers",
+        "vhost": "/",
+        "destination": "bigAndBlue",
+        "destination_type": "queue",
+        "routing_key": "",
+        "arguments": {
+            "color": "blue",
+            "size": "big",
+            "x-match": "all"
+        }
+    }
+]
+```
+
+
 
 # 5 Message
 
@@ -315,4 +337,12 @@ RabbitMQ中Message Queue的基本工作流程是：
 
 # 7 Virtual Host
 
-【虚拟主机的作用】
+
+
+```json
+"vhosts": [
+    {
+        "name": "/"
+    }
+]
+```
