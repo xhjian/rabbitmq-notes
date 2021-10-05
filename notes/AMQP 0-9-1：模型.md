@@ -246,7 +246,7 @@ Message Queue是FIFO（First In First Out，先进先出）队列，它的作用
 
 - 接收消息（from Exchange）
 - 保存消息
-- 发送Consumer（to Consumer）
+- 发送消息（to Consumer）
 
 RabbitMQ中Message Queue的基本工作流程是：
 
@@ -255,7 +255,7 @@ RabbitMQ中Message Queue的基本工作流程是：
 1. Message Queue接收到Exchange转发的消息后，将消息保存到内存/磁盘中。
 2. Consumer通过订阅/拉取的方式向Message Queue获取消息。
 3. Message Queue将队列头部消息复制并发送给Consumer。
-4. Consumer响应`ack`/`reject`/`nack`给Message Queue（可以在业务处理之前或之后）：
+4. 在开启手动确认模式后，Consumer会响应`ack`/`reject`/`nack`给Message Queue（可以在业务处理之前或之后）：
    1. `ack`：确认接收并处理消息（Message Queue会删除队列中保存的该消息）。
    2. `reject`：拒绝一条消息。
    3. `nack`：拒绝一条/多条消息。
@@ -266,7 +266,7 @@ RabbitMQ中Message Queue的基本工作流程是：
 
 ## 3.2 消息队列属性
 
-通过导出RabbitMQ的`Definitions`，我们可以得到Broker中的许多配置信息，从中我们可以找到交换机数据结构的存储格式如下：
+通过导出RabbitMQ的`Definitions`，我们可以得到Broker中的许多配置信息，从中我们可以找到消息队列数据结构的存储格式如下（其中不包含消息队列的内容）：
 
 ```json
 "queues": [
@@ -310,7 +310,13 @@ RabbitMQ中Message Queue的基本工作流程是：
 
 # 4 Binding
 
-通过上面对Exchange和Message Queue的介绍，我们可以发现它们的存储信息中并没有对方的信息。那么
+通过上面对Exchange和Message Queue的介绍，我们可以发现它们并没有存储对方的信息。那么Exchange在转发过程中是如何找到正确的Message Queue的呢？这需要借助Binding组件。
+
+Binding中保存着
+
+![Binding](AMQP 0-9-1：模型-img/Binding.png)
+
+通过导出RabbitMQ的`Definitions`，我们可以得到Broker中的许多配置信息，从中我们可以找到Binding数据结构的存储格式如下：
 
 ```json
 "bindings": [
@@ -328,8 +334,6 @@ RabbitMQ中Message Queue的基本工作流程是：
     }
 ]
 ```
-
-
 
 # 5 Message
 

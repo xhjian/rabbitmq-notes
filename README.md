@@ -1,9 +1,10 @@
 # rabbitmq-notes目录
 - [x] [RabbitMQ：下载 & 安装](./notes/RabbitMQ：下载 & 安装.md)
 - [ ] AMQP 0-9-1：模型
-- [ ] AMQP 0-9-1：方法层
-- [ ] AMQP 0-9-1：传输层
-- [ ] RabbitMQ：Java客户端（[Java Client API Guide — RabbitMQ](https://www.rabbitmq.com/api-guide.html)）
+- [ ] AMQP 0-9-1：方法
+- [ ] AMQP 0-9-1：传输
+- [x] [RabbitMQ]Java客户端：源码概览
+- [ ] 【RabbitMQ】Java客户端（[Java Client API Guide — RabbitMQ](https://www.rabbitmq.com/api-guide.html)）
 - [ ] RabbitMQ：Spring-AMQP
 - [ ] RabbitMQ：工作模式
 - [ ] RabbitMQ：Management UI插件
