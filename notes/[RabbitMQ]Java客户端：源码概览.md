@@ -204,6 +204,12 @@ RecoveryAwareChannelN ch = (RecoveryAwareChannelN) delegate.createChannel();
 final AutorecoveringChannel channel = new AutorecoveringChannel(this, delegateChannel);
 ```
 
+`ChannelManager`是`AMQConnection`中一个十分重要的成员变量，它管理着`AMQConnection`对象所属的所有`Channel`对象（`key`为通道编号，取值范围为1~`_channelMax`）：
+
+```Java
+private final Map<Integer, ChannelN> _channelMap = new HashMap<Integer, ChannelN>();
+```
+
 `AMQConnection`中有一个十分重要的方法`writeFrame()`，可以将数据发送给RabbitMQ服务器：
 
 ```Java
@@ -229,6 +235,79 @@ public void writeTo(DataOutputStream os) throws IOException {
         os.write(payload);
     }
     os.write(AMQP.FRAME_END);
+}
+```
+
+`AMQConnection`中有一个十分重要的方法`startMainLoop()`，可以创建新线程监听RabbitMQ服务器发送来的消息：
+
+```Java
+public void startMainLoop() {
+    MainLoop loop = new MainLoop();
+    final String name = "AMQP Connection " + getHostAddress() + ":" + getPort();
+    mainLoopThread = Environment.newThread(threadFactory, loop, name);
+    mainLoopThread.start();
+}
+```
+
+其核心在于`MainLoop`内部类，核心步骤如下：
+
+1. 调用`Frame frame = _frameHandler.readFrame()`读取RabbitMQ服务器发送来的消息。
+2. 调用`readFrame(frame)`处理消息。
+
+```Java
+private class MainLoop implements Runnable {
+    @Override
+    public void run() {
+        boolean shouldDoFinalShutdown = true;
+        try {
+            while (_running) {
+                Frame frame = _frameHandler.readFrame();
+                readFrame(frame);
+            }
+        } catch (Throwable ex) {
+            if (ex instanceof InterruptedException) {
+                shouldDoFinalShutdown = false;
+            } else {
+                handleFailure(ex);
+            }
+        } finally {
+            if (shouldDoFinalShutdown) {
+                doFinalShutdown();
+            }
+        }
+    }
+}
+```
+
+`readFrame(frame)`方法会从`ChannelManager`成员变量中获取该消息对应的通道，然后调用`channel.handleFrame(frame)`方法进行业务处理（最终会调用`channel.processAsync(Command command)`方法）：
+
+```Java
+private void readFrame(Frame frame) throws IOException {
+    if (frame != null) {
+        _missedHeartbeats = 0;
+        if (frame.type == AMQP.FRAME_HEARTBEAT) {
+        } else {
+            if (frame.channel == 0) {
+                _channel0.handleFrame(frame);
+            } else {
+                if (isOpen()) {
+                    ChannelManager cm = _channelManager;
+                    if (cm != null) {
+                        ChannelN channel;
+                        try {
+                            channel = cm.getChannel(frame.channel);
+                        } catch(UnknownChannelException e) {
+                            LOGGER.info("Received a frame on an unknown channel, ignoring it");
+                            return;
+                        }
+                        channel.handleFrame(frame);	// 业务处理
+                    }
+                }
+            }
+        }
+    } else {
+        handleSocketTimeout();
+    }
 }
 ```
 

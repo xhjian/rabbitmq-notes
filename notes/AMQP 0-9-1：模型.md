@@ -310,9 +310,9 @@ RabbitMQ中Message Queue的基本工作流程是：
 
 # 4 Binding
 
-通过上面对Exchange和Message Queue的介绍，我们可以发现它们并没有存储对方的信息。那么Exchange在转发过程中是如何找到正确的Message Queue的呢？这需要借助Binding组件。
+Exchange和Message Queue并没有存储对方的信息，那么Exchange在转发过程中是如何找到正确的Message Queue的呢？这需要借助Binding组件。
 
-Binding中保存着
+Binding中保存着`source`和`destination`属性，可以将交换机作为消息源，交换机/消息队列作为转发地址。当交换机路由消息时，会遍历`Binding`数组，找到`source`为自身的绑定关系，判断消息属性是否满足`routing_key`或`arguments`进行转发。
 
 ![Binding](AMQP 0-9-1：模型-img/Binding.png)
 
@@ -334,6 +334,13 @@ Binding中保存着
     }
 ]
 ```
+
+- `source`：数据源，只能是交换机。
+- `vhost`：绑定关系所属Virtual Host。。
+- `destination`：数据转发地址，可以是交换机或消息队列。
+- `destination_type`：数据转发地址类型。`queue`-消息队列，`exchange`-交换机。
+- `routing_key`：`routingKey`。
+- `arguments`：路由参数。
 
 # 5 Message
 
