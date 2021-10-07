@@ -1,16 +1,19 @@
 # rabbitmq-notes目录
-- [x] [RabbitMQ：下载 & 安装](./notes/RabbitMQ：下载 & 安装.md)
+- [x] [[RabbitMQ]：下载 & 安装](https://www.cnblogs.com/Xianhuii/p/15196573.html)
 - [ ] AMQP 0-9-1：模型
 - [ ] AMQP 0-9-1：方法
 - [ ] AMQP 0-9-1：传输
-- [x] [RabbitMQ]Java客户端：源码概览
-- [ ] 【RabbitMQ】Java客户端（[Java Client API Guide — RabbitMQ](https://www.rabbitmq.com/api-guide.html)）
-- [ ] RabbitMQ：Spring-AMQP
-- [ ] RabbitMQ：工作模式
-- [ ] RabbitMQ：Management UI插件
+- [x] [[RabbitMQ]Java客户端：源码概览](https://www.cnblogs.com/Xianhuii/p/15368509.html)
+- [ ] [RabbitMQ]Spring-AMQP：源码概览
+- [ ] [RabbitMQ]Management UI插件
+- [ ] [RabbitMQ]发送/接收消息
+- [ ] [RabbitMQ]确认机制
+- [ ] [RabbitMQ]死信
+- [ ] [RabbitMQ]延时队列
+- [ ] [RabbitMQ]集群
+- [ ] 
 - [ ] RabbitMQ：Confirm
 - [ ] RabbitMQ：TTL
-- [ ] RabbitMQ：Dead Letter
 - [ ] RabbitMQ：Alternate Exchange
 - [ ] RabbitMQ：监控
 - [ ] RabbitMQ：生产检查
