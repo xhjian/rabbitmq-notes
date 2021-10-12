@@ -1,8 +1,4 @@
-> 上一篇文章（[RabbitMQ：下载 & 安装](./RabbitMQ：下载 & 安装.md)）中，我们下载并且安装了RabbitMQ，并且成功注册了RabbitMQ服务。
->
-> 本文我们将学习RabbitMQ中最基础、最重要的概念：AMQP 0-9-1协议模型。
->
-> 本文主要讲解理论知识，对应代码参看后续文章。
+> 上一篇文章（[RabbitMQ：下载 & 安装](https://www.cnblogs.com/Xianhuii/p/15196573.html)）中，我们下载并且安装了RabbitMQ，并且成功注册了RabbitMQ服务。本文我们将学习RabbitMQ中最基础、最重要的概念：AMQP 0-9-1协议模型。
 
 # 0 前言
 
@@ -344,11 +340,27 @@ Binding中保存着`source`和`destination`属性，可以将交换机作为消�
 
 # 5 Message
 
+AMQP 0-9-1中传输数据的基本结构是Frame（帧），分成三类：
+
+- 方法帧（Method Frame），RabbitMQ服务器会按照以下步骤执行方法：
+  1. 读取方法帧载荷。
+  2. 解析载荷到对应数据结构。
+  3. 校验权限和参数格式。
+  4. 执行方法。
+- 内容帧（Content Frame），封装具体业务消息，包含消息头帧（content header frame）和消息体帧（content body frame）。
+- 心跳帧（Heartbeat Frame），维持TCP/IP连接的心跳数据。
+
 # 6 Connection & Channel
+
+简单来说，`Connection`表示客户端与RabbitMQ服务器一个TCP连接。
+
+为了对TCP连接进行多路复用，一个`Connection`内部可以创建多个`Channel`，用于不同的业务。客户端中不同`Channel`在发送或接收数据时，使用的都是同一个`Connection`。
 
 # 7 Virtual Host
 
+Virtual Host的作用类似Java中Package（包）的概念，它的作用是：建立命名空间，用来分隔交换机和消息队列。我们可以在不同Virtual Host下声明同名的交换机或消息队列。
 
+Virtual Host本质上只是一个字符串：
 
 ```json
 "vhosts": [
@@ -357,3 +369,4 @@ Binding中保存着`source`和`destination`属性，可以将交换机作为消�
     }
 ]
 ```
+
